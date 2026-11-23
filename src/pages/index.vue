@@ -47,8 +47,45 @@ function type() {
   setTimeout(type, isDeleting ? 80 : 130);
 }
 
+const CONTRIBUTOR_REPOS = ["nujinAI/nujinSkills"];
+const contributors = ref([]);
+
+async function fetchContributors() {
+  try {
+    const byLogin = new Map();
+    await Promise.all(
+      CONTRIBUTOR_REPOS.map(async (repo) => {
+        const res = await fetch(`https://api.github.com/repos/${repo}/contributors?per_page=100`);
+        if (!res.ok) return;
+        const list = await res.json();
+        if (!Array.isArray(list)) return;
+        for (const c of list) {
+          if (!c?.login || c.type === "Bot") continue;
+          const prev = byLogin.get(c.login);
+          if (prev) {
+            prev.contributions += c.contributions || 0;
+          } else {
+            byLogin.set(c.login, {
+              login: c.login,
+              avatar_url: c.avatar_url,
+              html_url: c.html_url,
+              contributions: c.contributions || 0
+            });
+          }
+        }
+      })
+    );
+    contributors.value = Array.from(byLogin.values()).sort(
+      (a, b) => b.contributions - a.contributions
+    );
+  } catch {
+    // Fallback to static invite if GitHub API is unreachable or rate-limited
+  }
+}
+
 onMounted(() => {
   type();
+  fetchContributors();
 });
 </script>
 
@@ -893,7 +930,7 @@ onMounted(() => {
               Become Part of the Financial Revolution
             </h2>
             <p class="text-gray-300 text-base sm:text-lg pt-4 leading-relaxed">
-              NujinAI is 100% open-source and free—no paywalls, no courses, no upsells. This is pure conviction to make financial freedom accessible and build a better world. Please show some love and support—contributions are always welcome!
+              NujinAI is 100% open-source and free—no paywalls, no courses, no upsells. This is pure conviction to make financial freedom accessible and build a better world. Contributions are very welcome, and every contributor is credited in our repositories and listed right here on the page below.
             </p>
             <p class="text-xs text-gray-500 pt-2 font-mono">
               Open Source • Community Driven • 100% Free
@@ -928,6 +965,47 @@ onMounted(() => {
                 <span>Read the Book: Code, Capital &amp; Freedom &rarr;</span>
               </a>
             </div>
+          </div>
+        </div>
+
+        <!-- Contributors -->
+        <div id="contributors" class="max-w-4xl mx-auto mt-12 text-center" data-aos="fade-up">
+          <span class="text-xs font-mono uppercase tracking-widest text-emerald-400">Contributors</span>
+          <p class="text-sm text-gray-400 mt-2">
+            Built with the community. Every merged contributor is credited in our repositories and here.
+          </p>
+          <div class="mt-6 rounded-2xl border border-gray-800/80 bg-gray-900/40 px-6 py-6">
+            <div v-if="contributors.length" class="flex flex-wrap items-center justify-center gap-3">
+              <a
+                v-for="c in contributors"
+                :key="c.login"
+                :href="c.html_url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-full border border-gray-800 bg-gray-950/70 hover:border-emerald-500/50 hover:text-white text-gray-300 text-sm transition"
+              >
+                <img
+                  :src="c.avatar_url"
+                  :alt="c.login"
+                  class="w-6 h-6 rounded-full object-cover"
+                  loading="lazy"
+                />
+                <span class="font-mono text-xs">@{{ c.login }}</span>
+              </a>
+            </div>
+            <p class="text-xs text-gray-400" :class="contributors.length ? 'mt-5' : 'text-sm'">
+              {{ contributors.length ? 'Want to join the list?' : 'Be the first to contribute —' }}
+              read
+              <a
+                href="https://github.com/nujinAI/nujinSkills/blob/main/CONTRIBUTING.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition"
+              >
+                CONTRIBUTING.md
+              </a>
+              to get started.
+            </p>
           </div>
         </div>
       </div>
